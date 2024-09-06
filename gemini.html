@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8">
+    <title>event report</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@300;400;500;700;900&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <header class="stylish-header">
+        <nav class="modern-nav">
+            <ul class="nav-list">
+                <li class="nav-item"><a href="index.html" class="nav-link">トップへ戻る</a></li>
+                <li class="nav-item"><a href="index_kensaku.html" class="nav-link">アクセス</a></li>
+                <li class="nav-item"><a href="gemini.html" class="nav-link">アルバム</a></li>
+            </ul>
+        </nav>
+    </header>
+    <section class="flex-center">
+        <div class="header">
+            2024/08/10 キャンプ @ 〇〇
+        </div>
+        <!-- Slider main container -->
+        <div class="swiper">
+            <!-- Additional required wrapper -->
+            <div class="swiper-wrapper">
+                <!-- Slides -->
+                <div class="swiper-slide">
+                    <img src="img/anastasiia-tarasova-PLBcLq3GQZA-unsplash.jpg" alt="">
+                </div>
+                <div class="swiper-slide">
+                    <img src="img/andrik-langfield-iPNilBHvNvg-unsplash.jpg" alt="">
+                </div>
+                <div class="swiper-slide">
+                    <img src="img/matthieu-joannon-fnyHxuk0OvY-unsplash.jpg" alt="">
+                </div>
+                <div class="swiper-slide">
+                    <img src="img/pavan-trikutam-lPufCHtdCLI-unsplash.jpg" alt="">
+                </div>
+                <div class="swiper-slide">
+                    <img src="img/tirza-van-dijk-hbwdmqcmP6k-unsplash.jpg" alt="">
+                </div>
+                <div class="swiper-slide">
+                    <img src="img/premium_photo-1661896173489-952d956cd12e.avif" alt="">
+                </div>
+                <div class="swiper-slide">
+                    <img src="img/picnic-6957303_1280.jpg" alt="">
+                </div>
+            </div>
+
+            <!-- If we need pagination -->
+            <div class="swiper-pagination"></div>
+
+            <!-- If we need navigation buttons -->
+            <div class="swiper-button-prev"></div>
+            <div class="swiper-button-next"></div>
+
+            <!-- If we need scrollbar -->
+            <div class="swiper-scrollbar"></div>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+        <script>
+            const swiper = new Swiper('.swiper', {
+                // Optional parameters
+                direction: 'horizontal',
+                loop: true,
+                speed: 500,
+                effect: "fade",
+
+
+                // If we need pagination
+                pagination: {
+                    el: '.swiper-pagination',
+                },
+
+                // Navigation arrows
+                navigation: {
+                    nextEl: '.swiper-button-next',
+                    prevEl: '.swiper-button-prev',
+                },
+
+                // And if we need scrollbar
+                scrollbar: {
+                    el: '.swiper-scrollbar',
+                },
+            });
+        </script>
+
+        <!-- コンテンツ表示画面 -->
+
+        <div class="container">
+            <div> 名前：<input type="text" id="uname"> </div>
+            <div>
+                <textarea id="text" cols="30" rows="10"></textarea>
+                <button id="send">送信</button>
+            </div>
+            <div id="output" style="overflow: auto; height: 300px;"></div>
+        </div>
+        <!--/ コンテンツ表示画面 -->
+    </section>
+
+    <!--** 以下Firebase **-->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+        import { getDatabase, ref, push, set, onChildAdded, update, remove, onChildRemoved, onChildChanged }
+            from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+
+        // Gemini APIのインポート
+        import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "*******************************",
+            authDomain: "**************************",
+            databaseURL: "**************************",
+            projectId: "**************************",
+            storageBucket: "**************************",
+            messagingSenderId: "**************************",
+            appId: "**************************"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const dbRef = ref(db, "chat");
+
+        // Gemini APIの初期化
+        const genAI = new GoogleGenerativeAI("**************************");
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        // 言語を判定する関数
+        function detectLanguage(text) {
+            const japaneseRegex = /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf\u3400-\u4dbf]/;
+            return japaneseRegex.test(text) ? "ja" : "en";
+        }
+
+        // テキストを翻訳する関数
+        async function translateText(text, sourceLang) {
+            const prompt = `Translate the following ${sourceLang === "ja" ? "Japanese" : "English"} text to ${sourceLang === "ja" ? "English" : "Japanese"}: "${text}"`;
+            const result = await model.generateContent(prompt);
+            return result.response.text();
+        }
+
+        //送信
+        $("#send").on("click", async function () {
+            const now = new Date();
+            const originalText = $("#text").val();
+            const sourceLang = detectLanguage(originalText);
+            const translatedText = await translateText(originalText, sourceLang);
+
+            const msg = {
+                uname: $("#uname").val(),
+                originalText: originalText,
+                translatedText: translatedText,
+                timestamp: now.toLocaleString()
+            }
+            const newPostRef = push(dbRef);
+            set(newPostRef, msg);
+        });
+
+        // 受信　最初にデータ取得
+        onChildAdded(dbRef, (data) => {
+            const msg = data.val();
+            const key = data.key;
+
+            let h = '<p id="' + key + '">';
+            h += msg.uname + '<br>';
+            h += '<span id="' + key + '_original">' + msg.originalText + '</span><br>';
+            h += '<span id="' + key + '_translated">' + msg.translatedText + '</span><br>';
+            h += '<em>(' + msg.timestamp + ')</em><br>';
+            h += '<button class="remove" data-key="' + key + '">削除</button> ';
+            h += '<button class="update" data-key="' + key + '">更新</button>';
+            h += '</p>';
+            $("#output").prepend(h);
+            $("#uname").val('');
+            $("#text").val('');
+        });
+
+        // 削除
+        $(document).on('click', '.remove', function () {
+            const key = $(this).data('key');
+            const deleteRef = ref(db, 'chat/' + key);
+            remove(deleteRef);
+            $('#' + key).remove();
+        });
+
+        // 更新
+        $(document).on('click', '.update', async function () {
+            const key = $(this).data('key');
+            const updatedText = $('#' + key + '_japanese').text();
+            const sourceLang = detectLanguage(updatedText);
+            const translatedText = await translateText(updatedText, sourceLang);
+
+            const updateRef = ref(db, 'chat/' + key);
+            update(updateRef, {
+                originalText: updatedText,
+                translatedText: translatedText
+            })
+                .then(() => {
+                    alert("メッセージが更新されました。");
+                })
+                .catch((error) => {
+                    console.error("更新エラー:", error);
+                });
+        });
+
+        //削除処理がFirebase側で実行されたらイベント発生！
+        onChildRemoved(dbRef, (data) => {
+            $("#" + data.key).remove();
+        });
+
+        //更新処理がFirebase側で実行されたらイベント発生！
+        onChildChanged(dbRef, (data) => {
+            $("#" + data.key + '_japanese').text(data.val().originalText.lang === "ja" ? data.val().originalText : data.val().translatedText);
+            $("#" + data.key + '_english').text(data.val().originalText.lang === "en" ? data.val().originalText : data.val().translatedText);
+            $("#" + data.key).fadeOut(800).fadeIn(800);
+        });
+
+    </script>
+
+</body>
+
+</html>
